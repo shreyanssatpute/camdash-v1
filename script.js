@@ -1,7 +1,7 @@
 // Configuration
 const API_URL = 'https://api.jsonbin.io/v3/b'; // JSONBin.io API URL
-const API_KEY = '$2a$10$F1fId.oFBNUrtnDImC3MNOy6o1ecqmO.nP76OF2tpg57RMGEYMULe'; // Replace with your JSONBin.io API key
-const BIN_ID = '67e80b5f8a456b79667efb94'; // Replace with your bin ID after creating it
+const API_KEY = '$2a$10$F1fId.oFBNUrtnDImC3MNOy6o1ecqmO.nP76OF2tpg57RMGEYMULe'; // Your JSONBin.io API key
+let BIN_ID = ''; // Will be set during initialization
 
 // DOM Elements
 const cameraFeed = document.getElementById('camera-feed');
@@ -34,17 +34,42 @@ async function setupCamera() {
     }
 }
 
-// Take a snapshot from the video feed
+
 function takeSnapshot() {
     const context = snapshotCanvas.getContext('2d');
-    snapshotCanvas.width = cameraFeed.videoWidth;
-    snapshotCanvas.height = cameraFeed.videoHeight;
+    
+    // Reduce the canvas size to half the video size
+    snapshotCanvas.width = cameraFeed.videoWidth / 2;
+    snapshotCanvas.height = cameraFeed.videoHeight / 2;
+    
     context.drawImage(cameraFeed, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
     
-    return snapshotCanvas.toDataURL('image/jpeg', 0.7);
+    // Reduce JPEG quality to 0.5 (50%)
+    return snapshotCanvas.toDataURL('image/jpeg', 0.2);
 }
-
-
+// Create or update the JSONBin with all events
+async function updateJSONBin(events) {
+    try {
+        const response = await fetch(`${API_URL}/${BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': API_KEY
+            },
+            body: JSON.stringify({ events })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update JSONBin');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error updating JSONBin:', error);
+        showNotification('Error syncing with server. Events saved locally.', 'error');
+        return null;
+    }
+}
 
 // Send event to JSONBin
 async function sendEvent(imageDataUrl) {
@@ -173,13 +198,13 @@ async function clearAllHistory() {
 }
 
 // Show notification
-function showNotification(message, type = 'success') {
+function showNotification(message, type = 'success', duration = 3000) {
     notificationText.textContent = message;
     notification.className = `notification ${type} show`;
     
     setTimeout(() => {
         notification.classList.remove('show');
-    }, 3000);
+    }, duration);
 }
 
 // Setup swipe to delete functionality
@@ -220,7 +245,112 @@ function setupSwipeToDelete(element) {
 }
 
 // Create a new JSONBin if it doesn't exist
+async function createJSONBin() {
+    try {
+        // Check if we have a bin ID stored
+        const storedBinId = localStorage.getItem('jsonBinId');
+        if (storedBinId) {
+            // Use the stored bin ID
+            BIN_ID = storedBinId;
+            console.log(`Using stored bin ID: ${BIN_ID}`);
+            
+            // Add bin ID display to UI
+            addBinIdDisplay();
+            return;
+        }
+        
+        // Create a new bin
+        const response = await fetch(`${API_URL}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': API_KEY
+            },
+            body: JSON.stringify({ events: [] })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to create JSONBin');
+        }
+        
+        const data = await response.json();
+        // Store the bin ID
+        BIN_ID = data.metadata.id;
+        localStorage.setItem('jsonBinId', BIN_ID);
+        
+        // Add bin ID display to UI
+        addBinIdDisplay();
+        
+        showNotification(`New bin created: ${BIN_ID}`, 'success', 5000);
+        console.log(`New bin created: ${BIN_ID}`);
+    } catch (error) {
+        console.error('Error creating JSONBin:', error);
+        showNotification('Error connecting to server. Working in offline mode.', 'error');
+    }
+}
 
+// Add bin ID display to UI
+function addBinIdDisplay() {
+    // Create a small display for the bin ID
+    const statusIndicator = document.querySelector('.status-indicator');
+    if (statusIndicator) {
+        // Check if it already exists
+        if (document.querySelector('.bin-id-display')) {
+            return;
+        }
+        
+        const binIdDisplay = document.createElement('div');
+        binIdDisplay.className = 'bin-id-display';
+        binIdDisplay.innerHTML = `
+            <span class="bin-id-label">Bin ID:</span> 
+            <span id="bin-id-value">${BIN_ID}</span>
+        `;
+        binIdDisplay.style.marginLeft = '15px';
+        binIdDisplay.style.fontSize = '0.75rem';
+        binIdDisplay.style.opacity = '0.7';
+        binIdDisplay.style.cursor = 'pointer';
+        binIdDisplay.title = 'Click to copy Bin ID';
+        
+        // Add click to copy functionality
+        binIdDisplay.addEventListener('click', () => {
+            navigator.clipboard.writeText(BIN_ID)
+                .then(() => showNotification('Bin ID copied to clipboard'))
+                .catch(err => console.error('Could not copy text: ', err));
+        });
+        
+        statusIndicator.appendChild(binIdDisplay);
+    }
+}
+
+// Add CSS for bin ID display
+function addBinIdStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .bin-id-display {
+            display: inline-flex;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-left: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        .bin-id-display:hover {
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        
+        .bin-id-label {
+            margin-right: 5px;
+            font-weight: 500;
+        }
+        
+        #bin-id-value {
+            font-family: monospace;
+        }
+    `;
+    document.head.appendChild(style);
+}
 
 // Event Listeners
 violenceButton.addEventListener('click', async () => {
@@ -242,7 +372,8 @@ clearHistoryButton.addEventListener('click', clearAllHistory);
 
 // Initialize
 window.addEventListener('DOMContentLoaded', async () => {
+    addBinIdStyles();
     await setupCamera();
-    
+    await createJSONBin();
     renderHistory();
 });
