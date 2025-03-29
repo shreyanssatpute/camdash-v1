@@ -44,29 +44,7 @@ function takeSnapshot() {
     return snapshotCanvas.toDataURL('image/jpeg', 0.7);
 }
 
-// Create or update the JSONBin with all events
-async function updateJSONBin(events) {
-    try {
-        const response = await fetch(`${API_URL}/${BIN_ID}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': API_KEY
-            },
-            body: JSON.stringify({ events })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to update JSONBin');
-        }
-        
-        return await response.json();
-    } catch (error) {
-        console.error('Error updating JSONBin:', error);
-        showNotification('Error syncing with server. Events saved locally.', 'error');
-        return null;
-    }
-}
+
 
 // Send event to JSONBin
 async function sendEvent(imageDataUrl) {
