@@ -243,6 +243,6 @@ clearHistoryButton.addEventListener('click', clearAllHistory);
 // Initialize
 window.addEventListener('DOMContentLoaded', async () => {
     await setupCamera();
-    await createJSONBin();
+    
     renderHistory();
 });
