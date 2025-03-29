@@ -242,41 +242,7 @@ function setupSwipeToDelete(element) {
 }
 
 // Create a new JSONBin if it doesn't exist
-async function createJSONBin() {
-    try {
-        // Check if we have a bin ID stored
-        const storedBinId = localStorage.getItem('jsonBinId');
-        if (storedBinId) {
-            // Use the stored bin ID
-            let BIN_ID = storedBinId;
-            return;
-        }
-        
-        // Create a new bin
-        const response = await fetch(`${API_URL}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': API_KEY
-            },
-            body: JSON.stringify({ events: [] })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to create JSONBin');
-        }
-        
-        const data = await response.json();
-        // Store the bin ID
-        localStorage.setItem('jsonBinId', data.metadata.id);
-        BIN_ID = data.metadata.id;
-        
-        showNotification('Connected to server successfully');
-    } catch (error) {
-        console.error('Error creating JSONBin:', error);
-        showNotification('Error connecting to server. Working in offline mode.', 'error');
-    }
-}
+
 
 // Event Listeners
 violenceButton.addEventListener('click', async () => {
